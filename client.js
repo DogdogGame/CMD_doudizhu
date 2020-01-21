@@ -1,14 +1,6 @@
-const CMD_ID = [
-    "0",
-    "1",//"reqSendCards"
-    "2",//"reqJiaofen"
-    "3",//"inputPutCards"
-    "4",//"commitPutCards"
-    "5",
-    "6"
-]
 const net = require('net');
 const readlineSync = require('readline-sync');
+const {ENUM_CMD_FN_SERVER} = require('./cmd_proto.js');
 // const {DZCardCheck} = require('./DZCardCheck');
 
 const socket = new net.Socket({});
@@ -59,10 +51,22 @@ function decode(buffer) {
         case 2://叫分结果
             // putCards();
             break;
-        case 3://出牌
+        case 3://start 出牌
             putCards();
             break;
-        
+        case 4://res 出牌
+            showPutCards(body);
+            break;
+        case 233://error 出牌不符合规则
+            console.log(body.error);
+            putCards();
+            break;
+        case 234://pass
+            console.log('player '+ body.seatNo+"-> pass.");
+            break;
+        case 886://game over
+            console.log('GameOver, you '+body.seatNo ===0?"Win":"Lose");
+            break;
     }
     // return {
     //     seq,
@@ -73,16 +77,20 @@ function decode(buffer) {
 var myHandCardsOriginArr = [];
 var myHandCardsShowArr = [];
 function sendCards(body) {
-    let _cards = body.cards.sort((a,b)=>{
+    let _cards = sortByVal(body.cards);
+    myHandCardsOriginArr = _cards;
+    console.log("sendCards:_cards->",body.cards)
+    myHandCardsShowArr = convert0x2h(_cards);
+    console.log('send cards complete,your seat NO is->', body.serverSeat, 'your cards->',myHandCardsShowArr.join(',') );
+    console.log('start call score (input 1-3)：')
+    const _score =  input2Cmd()
+    console.log('has called '+_score);
+    request({cmd: ENUM_CMD_FN_SERVER.responseJiaofen, data: { "msg": 'commitJiaofen' ,"score":_score} }); 
+}
+function sortByVal(arr){
+    return arr.sort((a,b)=>{
         return getCardValue(a) - getCardValue(b)
     })
-    myHandCardsOriginArr = _cards;
-    myHandCardsShowArr = convert0x2h(_cards);
-    console.log('发牌完毕,你的座位号为->', body.serverSeat, '你的手牌->',myHandCardsShowArr );
-    console.log('开始叫分（输入1-3）：')
-    const _score =  input2Cmd()
-    console.log('叫了'+_score+"分");
-    request({cmd: CMD_ID[2], data: { "msg": 'commitJiaofen' ,"score":_score} }); 
 }
 function input2Cmd() {
     return readlineSync.question();
@@ -96,6 +104,17 @@ function convert0x2h(cardsArr){
         _res.push(getCardName(_card));
     }
     return _res;
+}
+function convertH20x(cardsStr){
+    let _res = "";
+    if(!cardsStr) return '';
+    let cardsArr = cardsStr.split(',');
+    for(let i =0,len = cardsArr.length;i<len;i++){
+        let _card = cardsArr[i];
+        _res +=getCardSerial(_card)+",";
+    }
+    return _res.slice(0,_res.length-1);
+
 }
 function checkComplete(buffer) {
     if (buffer.length < 8) {
@@ -135,8 +154,33 @@ getCardName = function (cardSerialNo) {
     else if(resStr == 13){
         resStr = 'K'
     }
+    strSrialDic[resStr].push(cardSerialNo);
     return resStr+"";
 };
+getCardSerial = function (str) {
+    try{
+        return strSrialDic[str].pop()
+    }catch(e){
+        console.error('input error,please try again.');
+    }
+};
+var strSrialDic = {
+    "sJoker":[],
+    "bJoker":[],
+    "A":[],
+    "K":[],
+    'Q':[],
+    'J':[],
+    '10':[],
+    '9':[],
+    '8':[],
+    '7':[],
+    '6':[],
+    '5':[],
+    '4':[],
+    '3':[],
+    '2':[]
+}
 getCardValue = function (cardSerialNo) {
     var resNum = -1;
     cardSerialNo = Number(cardSerialNo);
@@ -158,14 +202,23 @@ getCardValue = function (cardSerialNo) {
     return resNum;
 };
 function startGame() {
-    request({ cmd: CMD_ID[1], data: { "msg": 'reqSendCards' } });
+    request({ cmd: ENUM_CMD_FN_SERVER.responseSendCards, data: { "msg": 'reqSendCards' } });
 }
 function putCards(){
-    console.log('该你出牌')
-    console.log('你的手牌->',myHandCardsShowArr.join(','))
-    console.log('输入要出的牌（以，号隔开）：')
-    let _cards = input2Cmd();
-    request({cmd:CMD_ID[3],data:{'msg':'commitPutCards','cards':_cards}});
+    console.log('Now, your turn')
+    console.log('Your cards->',myHandCardsShowArr.join(','))
+    console.log('Please input your cards to put :(split with ",", pass press Enter)')
+    let _cards = convertH20x(input2Cmd());
+    console.log("putCards-> _cards->",_cards);
+    request({cmd:ENUM_CMD_FN_SERVER.responsePutCards,data:{'msg':'commitPutCards','cards':_cards,'seatNo':0}});
+}
+function showPutCards(res){
+    console.log(JSON.stringify(res) )
+    if(res.seatNo === 0){//更新自家手牌
+        myHandCardsOriginArr =  res.handCards
+        myHandCardsShowArr =  convert0x2h(sortByVal(res.handCards));
+    }
+    console.log('player '+res.seatNo+'->putCards->',convert0x2h(sortByVal(res.cards)).join(','));
 }
 startGame();
 

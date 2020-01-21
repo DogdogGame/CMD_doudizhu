@@ -2,7 +2,7 @@
   "name": "ddz",
   "version": "1.0.0",
   "description": "",
-  "main": "client.js",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
