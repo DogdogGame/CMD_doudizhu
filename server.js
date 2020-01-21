@@ -1,7 +1,5 @@
 const net = require('net');
-
 const server = net.createServer((socket) => {
-
     let oldBuffer = null;
     socket.on('data', function (buffer) {
         if (oldBuffer) {
@@ -14,9 +12,7 @@ const server = net.createServer((socket) => {
             buffer = buffer.slice(packageLength);
             const result = decode(package);
             console.log(JSON.stringify(result))
-            socket.write(
-                encode(CMD_FN[result.cmd](), result.seq, result.cmd)
-            );
+            CMD_FN[result.cmd](result.data, result.seq, result.cmd,socket);
         }
 
         oldBuffer = buffer;
@@ -26,6 +22,11 @@ const server = net.createServer((socket) => {
     })
 
 });
+function send(data, seq, cmd,socket) {
+    socket.write(
+        encode(data, seq, cmd)
+    );
+}
 
 server.listen(4000);
 
@@ -68,11 +69,11 @@ function checkComplete(buffer) {
 playerCards = {};
 lordCards = [];
 playerCount = 3;
-initCardCount = 17;
+initCardCount = 17;``
 lordCardCount = 3;
 
 /**发牌 */
-function sendCards() {
+function responseSendCards(res, seq, cmd,socket) {
     let _playerServerSeat = 0;
     let _allCardsArr = [].slice.call(PokerValueArr);
     let _randomCards = _allCardsArr.sort(() => { return .5 - Math.random() });
@@ -84,11 +85,24 @@ function sendCards() {
         serverSeat: _playerServerSeat,
         cards: playerCards[0]
     }
-    return result;
+    // return result;
+    send(result, seq, cmd,socket)
 }
-/**出牌 */
-function putCards() {
-    
+/**叫分 */
+function responseJiaofen(res, seq, cmd,socket) {
+    //暂时忽略叫分流程
+    // send({}, seq, cmd,socket)
+    cmdPutCards(res, seq, cmd,socket);
+    // return {};
+}
+/**开始出牌 */
+function cmdPutCards(res, seq, cmd,socket) {
+    // console.log('[server.js:putCards] res.cards->',res.cards)
+    send({}, seq, 3,socket)
+    // return {msg:"startPuCards",};
+}
+function responsePutCards() {
+
 }
 PokerValueArr =
     [
@@ -100,6 +114,8 @@ PokerValueArr =
     ];
 
 const CMD_FN = {
-    1: sendCards,
-    2: putCards
+    1: responseSendCards,
+    2: responseJiaofen,
+    3: cmdPutCards,
+    4: responsePutCards,
 }

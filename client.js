@@ -1,8 +1,9 @@
 const CMD_ID = [
-    "1",
-    "2",
-    "3",
-    "4",
+    "0",
+    "1",//"reqSendCards"
+    "2",//"reqJiaofen"
+    "3",//"inputPutCards"
+    "4",//"commitPutCards"
     "5",
     "6"
 ]
@@ -51,8 +52,17 @@ function decode(buffer) {
     const seq = header.readInt16BE();
     const cmdNum = header.readInt16BE(6);
     const body = JSON.parse(buffer.slice(8));
-    if (cmdNum === 1) {
-        jiaoFen(body);
+    switch(cmdNum){
+        case 1://发牌
+            sendCards(body);
+            break;
+        case 2://叫分结果
+            // putCards();
+            break;
+        case 3://出牌
+            putCards();
+            break;
+        
     }
     // return {
     //     seq,
@@ -60,22 +70,26 @@ function decode(buffer) {
     //     data: JSON.parse(body) 
     // }
 }
-function jiaoFen(body) {
+var myHandCardsOriginArr = [];
+var myHandCardsShowArr = [];
+function sendCards(body) {
     let _cards = body.cards.sort((a,b)=>{
         return getCardValue(a) - getCardValue(b)
     })
-    console.log('发牌完毕,你的座位号为->', body.serverSeat, '你的手牌->', revert0x2h(_cards));
+    myHandCardsOriginArr = _cards;
+    myHandCardsShowArr = convert0x2h(_cards);
+    console.log('发牌完毕,你的座位号为->', body.serverSeat, '你的手牌->',myHandCardsShowArr );
     console.log('开始叫分（输入1-3）：')
     const _score =  input2Cmd()
-    console.log('叫了'+_score+"分")
-
+    console.log('叫了'+_score+"分");
+    request({cmd: CMD_ID[2], data: { "msg": 'commitJiaofen' ,"score":_score} }); 
 }
 function input2Cmd() {
     return readlineSync.question();
 
 }
 /**转换为玩家认识的符号 */
-function revert0x2h(cardsArr){
+function convert0x2h(cardsArr){
     let _res = [];
     for(let i =0,len = cardsArr.length;i<len;i++){
         let _card = cardsArr[i];
@@ -90,8 +104,9 @@ function checkComplete(buffer) {
     const bodyLength = buffer.readInt32BE(2);
     return 8 + bodyLength
 }
-function reqSendCards() {
-    socket.write(encode({ cmd: CMD_ID[0], data: { "msg": 'test' } }));
+/**发送请求 */
+function request(data) {
+    socket.write(encode(data));
 }
 getCardName = function (cardSerialNo) {
     var resStr = -1;
@@ -143,7 +158,14 @@ getCardValue = function (cardSerialNo) {
     return resNum;
 };
 function startGame() {
-    reqSendCards();
+    request({ cmd: CMD_ID[1], data: { "msg": 'reqSendCards' } });
+}
+function putCards(){
+    console.log('该你出牌')
+    console.log('你的手牌->',myHandCardsShowArr.join(','))
+    console.log('输入要出的牌（以，号隔开）：')
+    let _cards = input2Cmd();
+    request({cmd:CMD_ID[3],data:{'msg':'commitPutCards','cards':_cards}});
 }
 startGame();
 
