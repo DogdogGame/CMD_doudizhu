@@ -1,12 +1,12 @@
 {
-  "name": "duplex",
+  "name": "ddz",
   "version": "1.0.0",
   "description": "",
   "main": "client.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js"
   },
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {}
 }
