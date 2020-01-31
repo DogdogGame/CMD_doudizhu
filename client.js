@@ -207,7 +207,7 @@ function startGame() {
 function putCards(){
     console.log('Now, your turn')
     console.log('Your cards->',myHandCardsShowArr.join(','))
-    console.log('Please input your cards to put :(split with ",", pass press Enter)')
+    console.log('Please input your cards to put :(split with ",", press Enter to pass)')
     let _cards = convertH20x(input2Cmd());
     console.log("putCards-> _cards->",_cards);
     request({cmd:ENUM_CMD_FN_SERVER.responsePutCards,data:{'msg':'commitPutCards','cards':_cards,'seatNo':0}});
