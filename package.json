@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "eslint": "^7.5.0",
     "readline-sync": "^1.4.10"
   }
 }
